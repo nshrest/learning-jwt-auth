@@ -194,8 +194,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 			respondWithError(w, http.StatusBadRequest, error)
 			log.Println("login unsuccessful")
 			return
-		} 
-		else {
+		} else {
 			log.Println("login unsuccessful.. sth wrong terminating...")
 			log.Fatal(err)
 		}
@@ -203,27 +202,38 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	// compare hash password to user provided password
 	hashedpassword := user.Password
-	err = bcrypt.CompareHashAndPassword([]byte(hashedpassword), []byte(userpassword))
-	if err != nil {
+	isValidPassword := ComparePasswords(hashedpassword, []byte(userpassword))
+	if isValidPassword {
+		// generate token by passing user
+		token, err := generateToken(user)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		jwt.Token = token
+		// fmt.Println(token)
+		// setting client response with JWT token
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		responseJSON(w, jwt)
+		log.Println("login success")
+	} else {
 		error.Message = "Invalid Password"
-		respondWithError(w, http.StatusBadRequest, error)
-		log.Println("login unsuccessful")
+		respondWithError(w, http.StatusUnauthorized, error)
 		return
 	}
 
-	// generate token by passing user
-	token, err := generateToken(user)
-	if err != nil {
-		log.Fatal(err)
-	}
+}
 
-	jwt.Token = token
-	// fmt.Println(token)
-	// setting client response with JWT token
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	responseJSON(w, jwt)
-	log.Println("login success")
+// ComparePasswords compare hashed password from db with user provided password
+// from login post methods
+func ComparePasswords(hashedPassword string, password []byte) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), password)
+	if err != nil {
+		log.Println("login unsuccessful", err)
+		return false
+	}
+	return true
 }
 
 // TokenVerifyMiddleware is a middleware function sits between protected endpoint and protected endpoint handle function.
@@ -276,7 +286,7 @@ func TokenVerifyMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 // func protectedEndpoint is a handler function which accepts responsewriter interface and a pointer to a response type
 func protectedEndpoint(w http.ResponseWriter, r *http.Request) {
-
+	responseJSON(w, "protected endpoint invoked")
 	log.Println("protected endpoint invoked")
 }
 
@@ -286,15 +296,15 @@ func protectedEndpoint(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	//  DB connect (using builtin sql package instead documents says jet package.)
-	pgUrl, err := pq.ParseURL("postgres://loiocvro:NX6fuGUBk12YapRmI0un2Sf_TDheGsld@raja.db.elephantsql.com:5432/loiocvro")
+	pgURL, err := pq.ParseURL("postgres://loiocvro:NX6fuGUBk12YapRmI0un2Sf_TDheGsld@raja.db.elephantsql.com:5432/loiocvro")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Test what is inside pgURL
-	// fmt.Println(pgUrl)
+	// fmt.Println(pgURL)
 	// dbname=loiocvro host=raja.db.elephantsql.com password=NX6fuGUBk12YapRmI0un2Sf_TDheGsld port=5432 user=loiocvro
-	db, err = sql.Open("postgres", pgUrl)
+	db, err = sql.Open("postgres", pgURL)
 	if err != nil {
 		log.Fatal(err)
 	}
