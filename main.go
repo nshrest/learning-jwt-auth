@@ -194,10 +194,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 			respondWithError(w, http.StatusBadRequest, error)
 			log.Println("login unsuccessful")
 			return
-		} else {
-			log.Println("login unsuccessful.. sth wrong terminating...")
-			log.Fatal(err)
 		}
+		log.Println("login unsuccessful.. sth wrong terminating...")
+		log.Fatal(err)
+
 	}
 
 	// compare hash password to user provided password
